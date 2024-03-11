@@ -50,12 +50,27 @@ let
   resolveValue = value: arg:
     builtins.toString (if builtins.isFunction value then value arg else value);
 
-  findCloseIndex = list: name: let
-    matcher = v: (builtins.isList v) && (builtins.head v) == CLOSE && (builtins.elemAt v 1) == name;
-    idx = lib.lists.findFirstIndex matcher null list;
-  in
-    if idx == null then throw "Closing tag for ${name} not found" else idx;
-
+  findCloseTagIndex = list: index: stack:
+    let
+      currentElem = builtins.elemAt list index;
+      mod = builtins.head currentElem;
+      tag = builtins.elemAt currentElem 1;
+      findNext = findCloseTagIndex list (index + 1);
+    in
+      if stack == [] then
+        index - 1
+      else
+        if builtins.isList currentElem && (mod == SECTION || mod == INVERT || mod == CLOSE) then
+          if mod == CLOSE then
+            if stack != [] && (builtins.head stack) == tag then
+              findNext (builtins.tail stack)
+            else
+              throw "Unexpected tag close: ${tag}"
+          else # start of section
+            findNext ([tag] ++ stack)
+        else
+          findNext stack;
+          
   handleElements = list: stack:
     let
       head = if list != [] then builtins.head list else null; 
@@ -78,7 +93,7 @@ let
       else if mod == SECTION || mod == INVERT then
         let
           tail = builtins.tail list;
-          closeIdx = findCloseIndex tail tag;
+          closeIdx = findCloseTagIndex tail 0 [tag];
           sectionList = lib.lists.take closeIdx tail;
           afterSectionList = lib.lists.drop (closeIdx + 1) tail;
           invert = mod == INVERT;
