@@ -11,6 +11,8 @@ let
   escapeFunction = if config ? escapeFunction then config.escapeFunction else v: v;
   lib = if config ? lib then config.lib else (import <nixpkgs>  { config = {}; overlays = []; }).lib;
 
+  strip = string: builtins.head (builtins.match "[[:space:]]*([^[:space:]]*)[[:space:]]*" string);
+
   isFalsy = v: v == null || v == false;
 
   getVariableValue = key: stack:
@@ -68,7 +70,7 @@ let
   handleTag = list: chunk: stack:
     let
       mod = builtins.head chunk;
-      tag = builtins.elemAt chunk 1;
+      tag = strip (builtins.elemAt chunk 1);
       val = getVariableValue tag stack;
     in
       if mod == COMMENT then
@@ -101,15 +103,18 @@ let
       else
         throw "Unknown modifier: ${mod}";
 
-  renderTemplate = template: view:
+  renderWithDelimieters = template: view: delimiterStartRaw: delimiterEndRaw:
     let
-      delimiterStart = lib.strings.escapeRegex DELIMITER_START;
-      delimiterEnd = lib.strings.escapeRegex DELIMITER_END;
-      tagExcludeChar = lib.strings.escapeRegex (builtins.substring 0 1 DELIMITER_END);
+      delimiterStart = lib.strings.escapeRegex delimiterStartRaw;
+      delimiterEnd = lib.strings.escapeRegex delimiterEndRaw;
+      tagExcludeChar = lib.strings.escapeRegex (builtins.substring 0 1 delimiterEndRaw);
       splitRe = delimiterStart + "([#/!&^]?)([^" + tagExcludeChar + "]+)" + delimiterEnd;
       matches = builtins.split splitRe template;
     in
       handleElements matches [{ value = view; tag = null; active = true; }];
+
+  renderTemplate = template: view:
+    renderWithDelimieters template view DELIMITER_START DELIMITER_END;
   
 in renderTemplate template view
         

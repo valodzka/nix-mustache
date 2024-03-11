@@ -5,9 +5,12 @@ let
   # TODO: test failures?
   tests = [
     { t = "hello, {{name}} {{name}}"; v = { name = "World"; }; e = "hello, World World"; }
+    { t = "hello, {{ name }} {{  name   }}"; v = { name = "World"; }; e = "hello, World World"; }
+    { t = "{{#foo}}{{.}} is {{foo}}{{/foo}}"; v = { foo = "bar"; }; e = "bar is bar"; }
     { t = "hello, {{#name}}friend{{/name}}"; v = { name = "World"; }; e = "hello, friend"; }
     { t = "hello, {{#name}}friend{{/name}}"; v = { }; e = "hello, "; }
     { t = "hello, {{! comment}} friend"; v = { }; e = "hello,  friend"; }
+    { t = "hello, {{! \ncom\nment\n\n}} friend"; v = { }; e = "hello,  friend"; }
     { t = "packages: {{#packages}}-{{/packages}}"; v = { packages = ["a" "b" "c"]; }; e = "packages: ---"; }
     { t = "function {{call}}"; v = { call = v: "call!"; }; e = "function call!"; }
     { t = "is {{#call}}{{name}} ok{{/call}}?"; v = { call = text: "[" + text + "]" ; name = "Alex"; }; e = "is [Alex ok]?"; }
