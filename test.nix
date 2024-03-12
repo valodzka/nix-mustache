@@ -27,6 +27,8 @@ let
     { t = "dot syntax in section is {{#obj.goes}}{{deep}}{{/obj.goes}}"; v = { obj = { goes = { deep = "deep"; }; }; }; e = "dot syntax in section is deep"; }
     { t = "with escape: {{html}}, without: {{&html}}"; v = { html = "<tag>"; }; e = "with escape: &lt;tag&gt;, without: <tag>"; }
     { t = "| A {{#bool}}B {{#bool}}C{{/bool}} D{{/bool}} E |"; v = { bool = true; }; e = "| A B C D E |"; }
+    { t = "a\n{{! comment }}\nb"; v = {}; e = "a\nb"; }
+    { t = "a\n{{ comment }}\nb"; v = { comment = "c"; }; e = "a\nc\nb"; }
   ];
   runTest = case: let
     result = (mustache { template = case.t; view = case.v; config = { lib = pkgs.lib; escapeFunction = pkgs.lib.strings.escapeXML; }; });

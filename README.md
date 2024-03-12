@@ -25,6 +25,7 @@ Given template `Corefile.mustache` & nix file `coredns-config.nix`:
 .:53 {
   forward . 8.8.8.8
   log
+  
   {{#brokenSites}}
   template IN AAAA {{.}} {
     rcode NXDOMAIN
@@ -68,7 +69,6 @@ Run `nix-env --install --file coredns-config.nix` and it will generate:
   template IN AAAA big-isp.com {
     rcode NXDOMAIN
   }
-
 }
 ```
 
@@ -86,6 +86,11 @@ Run `nix-env --install --file coredns-config.nix` and it will generate:
 - [ ] set delimiter `{{=<% %>=}}`
 - [ ] `{{{unescaped}}}`
 
-## Run tests
+## Tests
+### Run [mustache spec](https://github.com/mustache/spec) (partialy implemented)
+
+    nix-instantiate --eval spec.nix
+    
+### Run tests
 
     nix-instantiate --strict --eval --json test.nix
