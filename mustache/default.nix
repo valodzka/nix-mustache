@@ -10,11 +10,13 @@ let
   CLOSE = "/";
   PARTIAL = ">";
 
-  escape = if config ? escape then config.escape else v: v;
-  partialByName = if config ? partial then config.partial else v: null;
-  lib = if config ? lib then config.lib else (import <nixpkgs>  { config = {}; overlays = []; }).lib;
-  lists = lib.lists;
-  strings = lib.strings;
+  lib = config.lib or (import <nixpkgs>  { config = {}; overlays = []; }).lib;
+  inherit (lib) lists strings;
+
+  cfg = {
+    partial = config.partial or (v: null);
+    escape = config.escape or (v: v);
+  };
 
   utils = {
     nullToEmpty = s: if s == null then "" else s;
@@ -112,19 +114,19 @@ let
       tag = elem.tag;
       val = findVariableValue tag stack;
       isFalsyVal = val == null || val == false || val == [];
-      startExternal = elem.effectiveLeadingSpace;
-      startInternal = elem.effectiveTrailingSpace;
+      openLeading = elem.effectiveLeadingSpace;
+      openTrailing = elem.effectiveTrailingSpace;
       remainder = handleElements (builtins.tail list) stack;
     in
       if mod == COMMENT then
-        startExternal + startInternal + remainder
+        openLeading + openTrailing + remainder
       else if mod == PARTIAL then
         let
-          partialTemplate = partialByName tag;
+          partialTemplate = cfg.partial tag;
           partialTemplateResolved = if partialTemplate == null then "" else partialTemplate;
           # remove empty trailing line added during split
           partialTemplateLines = utils.removeIfLast (builtins.split "(\n|\r\n)" partialTemplateResolved) "";
-          linesReducer = (text: line: text + (if builtins.isString line then elem.leadingSpace + line else builtins.head line));
+          linesReducer = text: line: text + (if builtins.isString line then elem.leadingSpace + line else builtins.head line);
           templateIndented = builtins.foldl' linesReducer "" partialTemplateLines;
           partialTemplateFinal = if elem.isStandalone then templateIndented else partialTemplateResolved;
           partialRendered = renderWithDelimiters partialTemplateFinal stack DELIMITER_START DELIMITER_END;
@@ -132,7 +134,7 @@ let
           (if elem.isStandalone then
             partialRendered
           else
-            startExternal + partialRendered + startInternal) + remainder
+            openLeading + partialRendered + openTrailing) + remainder
       else if mod == SECTION || mod == INVERT then
         let
           tail = builtins.tail list;
@@ -141,11 +143,11 @@ let
           afterSectionList = lists.drop (closeIdx + 1) tail;
           invert = mod == INVERT;
           closer = builtins.elemAt tail closeIdx;
-          endInternal = closer.effectiveLeadingSpace;
-          endExternal = closer.effectiveTrailingSpace;
+          endLeading = closer.effectiveLeadingSpace;
+          endTrailing = closer.effectiveTrailingSpace;
         in
           (if (isFalsyVal && !invert) || (!isFalsyVal && invert) then
-            startExternal + endExternal
+            openLeading + endTrailing
            else
              let
                effectiveValue = if !(builtins.isList val) then [val]
@@ -157,16 +159,15 @@ let
                    sectionResult = handleElements sectionList ([{ value = v; }] ++ stack);
                    resolvedValue = if builtins.isFunction v then resolveValue v sectionResult else sectionResult;
                  in
-                   acc + startInternal + resolvedValue + endInternal)
-                 startExternal effectiveValue) + endExternal
-          ) + 
-          (handleElements afterSectionList stack)
+                   acc + openTrailing + resolvedValue + endLeading)
+                 openLeading effectiveValue) + endTrailing
+          ) + (handleElements afterSectionList stack)
       else if mod == "" || mod == UNESCAPED || mod == UNESCAPED2 then
         let
           resolvedValue = resolveValue val null;
-          escapedValue = if mod == "" then escape resolvedValue else resolvedValue;
+          escapedValue = if mod == "" then cfg.escape resolvedValue else resolvedValue;
         in
-          startExternal + escapedValue + startInternal + remainder
+          openLeading + escapedValue + openTrailing + remainder
       else
         throw "Unknown modifier: ${mod}";
 

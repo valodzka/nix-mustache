@@ -1,7 +1,8 @@
 
 let
-  pkgs = (import <nixpkgs>  { config = {}; overlays = []; });
-  mustache = (import ./mustache);
+  pkgs = import <nixpkgs> { config = {}; overlays = []; };
+  lib = pkgs.lib;
+  mustache = import ./mustache;
   # TODO: test failures?
   tests = [
     { t = "hello, {{name}} {{name}}"; v = { name = "World"; }; e = "hello, World World"; }
@@ -34,11 +35,11 @@ let
   ];
   
   createTest = idx: case: let
-    result = (mustache { template = case.t; view = case.v; config = {
+    result = mustache { template = case.t; view = case.v; config = {
       lib = pkgs.lib;
-      escape = pkgs.lib.strings.escapeXML;
-      partial = if case ? p then case.p else null;
-    }; });
+      escape = lib.strings.escapeXML;
+      partial = case.p or null;
+    }; };
   in {
     name = "test#${builtins.toString idx}";
     value = {
@@ -47,7 +48,7 @@ let
     };
   };
 
-  cases = pkgs.lib.lists.imap0 createTest tests;
-in pkgs.lib.debug.runTests (builtins.listToAttrs cases)
+  cases = lib.lists.imap0 createTest tests;
+in lib.debug.runTests (builtins.listToAttrs cases)
 
 
