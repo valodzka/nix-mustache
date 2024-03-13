@@ -32,16 +32,22 @@ let
     { t = "a\n{{#f}}\n {{#f}}\n  {{#f}}\n   {{#f}}\n1\n   {{/f}}\n  {{/f}}\n {{/f}}\n{{/f}}"; v = { f = true; }; e = "a\n1\n"; }
     { t = "a{{>text}}"; v = { x = 1; }; e = "a1"; p = n: "{{x}}"; }
   ];
-  runTest = case: let
+  
+  createTest = idx: case: let
     result = (mustache { template = case.t; view = case.v; config = {
       lib = pkgs.lib;
       escape = pkgs.lib.strings.escapeXML;
       partial = if case ? p then case.p else null;
     }; });
-    expected = case.e;
-  in
-    if result != expected then throw "EXPECTED: '${expected}', GOT: '${result}'" else result;
-  results = builtins.map runTest tests;
-in results
+  in {
+    name = "test#${builtins.toString idx}";
+    value = {
+      expr = result;
+      expected = case.e;
+    };
+  };
+
+  cases = pkgs.lib.lists.imap0 createTest tests;
+in pkgs.lib.debug.runTests (builtins.listToAttrs cases)
 
 

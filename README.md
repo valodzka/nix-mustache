@@ -94,4 +94,4 @@ Pass all main parts except `delimiters`
     
 ### Run tests
 
-    nix-instantiate --strict --eval --json test.nix
+    nix-instantiate --strict --eval --json test.nix | jq .
