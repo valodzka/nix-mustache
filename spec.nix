@@ -8,7 +8,7 @@ let
     rev = "6648085ec62ddc1282284b107792e67978d8b13c";
     ref = "master";
   };
-  parts = ["interpolation" "comments" "sections" "inverted" "partials"];
+  parts = ["interpolation" "comments" "sections" "inverted" "partials" "delimiters"];
 
   checkPart = part:
     let
@@ -18,7 +18,7 @@ let
       runTest = case:
         let
           result = mustache { template = case.template; view = case.data; config = {
-            lib = lib;
+            lib = pkgs.lib;
             escape = lib.strings.escapeXML;
             partial = name: if builtins.hasAttr name case.partials then case.partials.${name} else null;
           }; };

@@ -3,7 +3,7 @@ let
   pkgs = import <nixpkgs> { config = {}; overlays = []; };
   lib = pkgs.lib;
   mustache = import ./mustache;
-  # TODO: test failures?
+  # TODO: test failures? better {{{}}} handing?
   tests = [
     { t = "hello, {{name}} {{name}}"; v = { name = "World"; }; e = "hello, World World"; }
     { t = "hello, {{ name }} {{  name   }}"; v = { name = "World"; }; e = "hello, World World"; }
@@ -32,6 +32,7 @@ let
     { t = "a\n{{ comment }}\nb"; v = { comment = "c"; }; e = "a\nc\nb"; }
     { t = "a\n{{#f}}\n {{#f}}\n  {{#f}}\n   {{#f}}\n1\n   {{/f}}\n  {{/f}}\n {{/f}}\n{{/f}}"; v = { f = true; }; e = "a\n1\n"; }
     { t = "a{{>text}}"; v = { x = 1; }; e = "a1"; p = n: "{{x}}"; }
+    { t = "{{=<% %>=}}(<%text%>)"; v = { text = "Hey!"; }; e = "(Hey!)"; }
   ];
   
   createTest = idx: case: let

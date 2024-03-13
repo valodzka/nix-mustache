@@ -39,9 +39,8 @@ Given template `Corefile.mustache` & nix file `coredns-config.nix`:
 { pkgs ? import <nixpkgs>  { config = {}; overlays = []; }, mustache ? import ./mustache }:
 
 let
-  template = builtins.readFile ./Corefile.mustache;
   config = mustache {
-    template = template;
+    template = ./Corefile.mustache;
     view = {
       brokenSites = ["broken.com" "big-isp.com"];
       pkgs = pkgs;
@@ -74,21 +73,19 @@ Run `nix-env --install --file coredns-config.nix` and it will generate:
 ```
 
 ## Features
-- [x] variables`{{escaped}}`, `{{&unescaped}}`, `{{{unescaped}}}` (default escape function does nothing)
-- [x] sections `{{#section}}`
-- [x] inverted sections `{{^inverted}}`
-- [x] lambdas `{{#lambda}}`
-- [x] comments `{{!comment}}`
-- [x] variables dot notation `{{obj.prop}}`
-- [x] partials `{{>partial}}`
-- [x] tests, spec
-
-## Not implemented
-- [ ] set delimiter `{{=<% %>=}}`
+- variables`{{escaped}}`, `{{&unescaped}}`, `{{{unescaped}}}` (default escape function does nothing)
+- sections `{{#section}}`
+- inverted sections `{{^inverted}}`
+- lambdas `{{#lambda}}`
+- comments `{{!comment}}`
+- variables dot notation `{{obj.prop}}`
+- partials `{{>partial}}`
+- set delimiter `{{=<% %>=}}`
+- tests, spec
 
 ## Tests
 ### Run [mustache spec](https://github.com/mustache/spec)
-Pass all main parts except `delimiters`
+Implements all non optional modules.
 
     nix-instantiate --eval spec.nix
     

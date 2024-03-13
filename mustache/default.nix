@@ -1,7 +1,7 @@
 { template, view, config ? {} }:
 let
-  DELIMITER_START = "{{";
-  DELIMITER_END = "}}";
+  DEFAULT_DELIMITER_START = "{{";
+  DEFAULT_DELIMITER_END = "}}";
   COMMENT = "!";
   SECTION = "#";
   INVERT = "^";
@@ -129,7 +129,7 @@ let
           linesReducer = text: line: text + (if builtins.isString line then elem.leadingSpace + line else builtins.head line);
           templateIndented = builtins.foldl' linesReducer "" partialTemplateLines;
           partialTemplateFinal = if elem.isStandalone then templateIndented else partialTemplateResolved;
-          partialRendered = renderWithDelimiters partialTemplateFinal stack DELIMITER_START DELIMITER_END;
+          partialRendered = renderWithDelimiters partialTemplateFinal stack DEFAULT_DELIMITER_START DEFAULT_DELIMITER_END;
         in
           (if elem.isStandalone then
             partialRendered
@@ -204,19 +204,53 @@ let
     in
       lists.imap0 tagsToAttrs list;
   
-  renderWithDelimiters = template: stack: delimiterStartRaw: delimiterEndRaw:
+  renderWithConstantDelimiters = template: stack: delimiterStart: delimiterEnd:
     let
-      delimiterStart = strings.escapeRegex delimiterStartRaw;
-      delimiterEnd = strings.escapeRegex delimiterEndRaw;
-      tagExcludeChar = strings.escapeRegex (builtins.substring 0 1 delimiterEndRaw);
-      splitRe = "([[:blank:]]*)" + delimiterStart + "([#/!&^{>]?)([^" + tagExcludeChar + "]+)}?" + delimiterEnd + "([[:blank:]]*)($|\n|\r\n)?";
+      delimiterStartEscaped = strings.escapeRegex delimiterStart;
+      delimiterEndEscaped = strings.escapeRegex delimiterEnd;
+      tagExcludeChar = strings.escapeRegex (builtins.substring 0 1 delimiterEnd);
+      splitRe = "([[:blank:]]*)" + delimiterStartEscaped + "([#/!&^{>]?)([^" + tagExcludeChar + "]+)}?" + delimiterEndEscaped + "([[:blank:]]*)($|\n|\r\n)?";
       splited = builtins.split splitRe template;
       matches = prepareChunks splited;
     in
       handleElements matches stack;
-
+  
+  renderWithDelimiters = template: stack: delimiterStart: delimiterEnd:
+    let
+      delimiterStartEscaped = strings.escapeRegex delimiterStart;
+      delimiterEndEscaped = strings.escapeRegex delimiterEnd;
+      splitRe = "((^|\n|\r\n)?([[:blank:]]*)" + delimiterStartEscaped +
+                "=[[:blank:]]*([^[:blank:]]+)[[:blank:]]+([^[:blank:]{]+)[[:blank:]]*=" +
+                delimiterEndEscaped + "([[:blank:]]*)($|\n|\r\n)?)";
+      splited = builtins.split splitRe template;
+      
+      parts = builtins.length splited;
+      at = builtins.elemAt (builtins.elemAt splited 1);
+      leadingLf = at 1;
+      leadingSp = at 2;
+      newDelimiterStart = at 3;
+      newDelimiterEnd = at 4;
+      trailingSp = at 5;
+      trailingLf = at 6;
+      reducer = acc: e: acc + (if builtins.isString e then e else builtins.head e);
+      partWithNewDelimiters = builtins.foldl' reducer "" (lists.drop 2 splited);
+      isStandalone = leadingLf != null && trailingLf != null;
+      spacing = (utils.nullToEmpty leadingLf) + (if isStandalone then "" else leadingSp + trailingSp + (utils.nullToEmpty trailingLf));
+      
+      renderedWithOriginalDelimiters = renderWithConstantDelimiters (builtins.head splited) stack delimiterStart delimiterEnd;
+      renderedWithNewDelimiters = spacing + (renderWithDelimiters partWithNewDelimiters stack newDelimiterStart newDelimiterEnd);
+    in
+      renderedWithOriginalDelimiters + 
+      (if parts == 1 then "" 
+       else if parts > 2 then renderedWithNewDelimiters
+       else throw "Unexpected number of parts: ${toString parts}")
+  ;
+  
   renderTemplate = template: view:
-    renderWithDelimiters template [{ value = view;}] DELIMITER_START DELIMITER_END;
+    let
+      templateContent = if builtins.isPath template then builtins.readFile template else template;
+    in
+      renderWithDelimiters templateContent [{ value = view;}] DEFAULT_DELIMITER_START DEFAULT_DELIMITER_END;
   
 in renderTemplate template view
         
