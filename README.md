@@ -24,9 +24,9 @@ Given template `Corefile.mustache` & nix file `coredns-config.nix`:
 ```
 # generated for {{pkgs.coredns.name}}
 .:53 {
-  forward . 8.8.8.8
+  forward .{{#dnsServers}} {{.}}{{/dnsServers}}
   log
-  
+
   {{#brokenSites}}
   template IN AAAA {{.}} {
     rcode NXDOMAIN
@@ -43,6 +43,7 @@ let
     template = ./Corefile.mustache;
     view = {
       brokenSites = ["broken.com" "big-isp.com"];
+      dnsServers = ["8.8.8.8" "8.8.4.4"];
       pkgs = pkgs;
     };
   };
@@ -59,13 +60,12 @@ Run `nix-env --install --file coredns-config.nix` and it will generate:
 ```
 # generated for coredns-1.11.1
 .:53 {
-  forward . 8.8.8.8
+  forward . 8.8.8.8 8.8.4.4
   log
 
   template IN AAAA broken.com {
     rcode NXDOMAIN
   }
-
   template IN AAAA big-isp.com {
     rcode NXDOMAIN
   }
