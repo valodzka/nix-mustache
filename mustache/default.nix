@@ -41,32 +41,20 @@ let
   
   findVariableValue = key: stack:
     let
-      getTopValue = stack: (builtins.head stack).value;
-
       findRoot = key: stack:
         let
-          checker = data: utils.hasAttr key data.value;
-          elem = lists.findFirst checker null stack;
+          elem = lists.findFirst (utils.hasAttr key) null stack;
         in
-          if elem != null then elem.value.${key} else null;
-
-      findValueNested = pathParts: obj:
-        let
-          attr = builtins.head pathParts;
-          tail = builtins.tail pathParts;
-        in
-          if pathParts == [] then obj
-          else if !(utils.hasAttr attr obj) then null
-          else findValueNested tail obj.${attr};
+          if elem != null then elem.${key} else null;
 
       findValueByPath = path: stack:
         let
           pathParts = strings.splitString "." path;
           root = findRoot (builtins.head pathParts) stack;
         in
-          findValueNested (builtins.tail pathParts) root;
+          lib.attrsets.attrByPath (builtins.tail pathParts) null root;
     in
-      if key == "." then getTopValue stack else findValueByPath key stack;
+      if key == "." then builtins.head stack else findValueByPath key stack;
 
   resolveValue = value: arg:
     let
@@ -152,7 +140,7 @@ let
              in
                (builtins.foldl' (acc: v:
                  let
-                   sectionResult = handleElements sectionList ([{ value = v; }] ++ stack);
+                   sectionResult = handleElements sectionList ([v] ++ stack);
                    resolvedValue = if builtins.isFunction v then resolveValue v sectionResult else sectionResult;
                  in
                    acc + openTrailing + resolvedValue + endLeading)
@@ -250,7 +238,7 @@ let
     let
       templateContent = if builtins.isPath template then builtins.readFile template else template;
     in
-      renderWithDynamicDelimiters templateContent [{ value = view;}] DEFAULT_DELIMITER_START DEFAULT_DELIMITER_END;
+      renderWithDynamicDelimiters templateContent [view] DEFAULT_DELIMITER_START DEFAULT_DELIMITER_END;
   
 in renderTemplate template view
         
