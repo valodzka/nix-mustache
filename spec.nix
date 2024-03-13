@@ -26,8 +26,8 @@ let
         in
           if result != expected then lib.debug.traceVal "FAIL: ${case.name}: EXPECTED: '${expected}', GOT: '${result}'" else lib.debug.traceVal "PASS: ${case.name}";
     in builtins.map runTest (builtins.filter
-      #(t: true)
-      (t: t.name != "Recursion") #Indented Inline Sections" && part == "inverted")
+      (t: true)
+      #(t: t.name == "Indented Inline Sections" && part == "inverted")
       tests);
   failed = lib.lists.count (result: lib.strings.hasPrefix "FAIL:" result) (lib.lists.flatten (builtins.map checkPart parts));
 in

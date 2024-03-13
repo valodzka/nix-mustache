@@ -213,7 +213,7 @@ let
       splited = builtins.split splitRe template;
       matches = prepareChunks splited;
     in
-      handleElements matches [{ value = view; }];
+      handleElements matches stack;
 
   renderTemplate = template: view:
     renderWithDelimiters template [{ value = view;}] DELIMITER_START DELIMITER_END;
