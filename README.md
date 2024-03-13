@@ -9,7 +9,7 @@ Pure nix implementation of [mustache](https://mustache.github.io/) template engi
 
 (import ./mustache){ template = "Hello, {{name}}!"; view = { name = "nix"; }; }
 
-# with escape
+# with loading from github & custom escape
 let
   mustache = import (builtins.fetchurl { url = "https://raw.githubusercontent.com/valodzka/nix-mustache/master/mustache/default.nix"; });
   escape = string: builtins.replaceStrings ["nix"] ["NIX"] string;

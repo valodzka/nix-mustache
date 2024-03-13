@@ -9,8 +9,9 @@ let
   UNESCAPED2 = "{";
   CLOSE = "/";
   PARTIAL = ">";
+  ESCAPED = "";
 
-  lib = config.lib or (import <nixpkgs>  { config = {}; overlays = []; }).lib;
+  lib = config.lib or (import <nixpkgs> { config = {}; overlays = []; }).lib;
   inherit (lib) lists strings;
 
   cfg = {
@@ -21,6 +22,7 @@ let
   utils = {
     nullToEmpty = s: if s == null then "" else s;
     strip = string: builtins.head (builtins.match "[[:space:]]*([^[:space:]]*)[[:space:]]*" string);
+    hasAttr = key: attrs: (builtins.isAttrs attrs) && (builtins.hasAttr key attrs);
     formatFloat = float:
       let
         string = toString float;
@@ -35,39 +37,36 @@ let
         if len == 0 || lastElem != targetElem then list else lists.sublist 0 (len - 1) list;
   };
   
-  isTag = e: (builtins.isAttrs e) && e ? tag;
+  isTag = utils.hasAttr "tag";
   
   findVariableValue = key: stack:
     let
-      getValueDot = stack: (builtins.head stack).value;
+      getTopValue = stack: (builtins.head stack).value;
 
-      getRootValue = key: stack:
+      findRoot = key: stack:
         let
-          checker = data: (builtins.isAttrs data.value) && (builtins.hasAttr key data.value);
+          checker = data: utils.hasAttr key data.value;
           elem = lists.findFirst checker null stack;
         in
           if elem != null then elem.value.${key} else null;
 
-      getValueNested = pathParts: obj:
+      findValueNested = pathParts: obj:
         let
           attr = builtins.head pathParts;
           tail = builtins.tail pathParts;
         in
-          if pathParts == [] then
-            obj
-          else if (builtins.isAttrs obj) && (builtins.hasAttr attr obj) then
-            getValueNested tail obj.${attr}
-          else
-            null;
+          if pathParts == [] then obj
+          else if !(utils.hasAttr attr obj) then null
+          else findValueNested tail obj.${attr};
 
-      getValueByPath = path: stack:
+      findValueByPath = path: stack:
         let
           pathParts = strings.splitString "." path;
-          root = getRootValue (builtins.head pathParts) stack;
+          root = findRoot (builtins.head pathParts) stack;
         in
-          getValueNested (builtins.tail pathParts) root;
+          findValueNested (builtins.tail pathParts) root;
     in
-      if key == "." then getValueDot stack else getValueByPath key stack;
+      if key == "." then getTopValue stack else findValueByPath key stack;
 
   resolveValue = value: arg:
     let
@@ -101,12 +100,9 @@ let
     let
       head = builtins.head list; 
     in
-      if list == [] then
-        ""
-      else if isTag head then
-        handleTag list head stack
-      else
-        head + (handleElements (builtins.tail list) stack);
+      if list == [] then ""
+      else if isTag head then handleTag list head stack
+      else head + (handleElements (builtins.tail list) stack);
 
   handleTag = list: elem: stack:
     let
@@ -129,7 +125,7 @@ let
           linesReducer = text: line: text + (if builtins.isString line then elem.leadingSpace + line else builtins.head line);
           templateIndented = builtins.foldl' linesReducer "" partialTemplateLines;
           partialTemplateFinal = if elem.isStandalone then templateIndented else partialTemplateResolved;
-          partialRendered = renderWithDelimiters partialTemplateFinal stack DEFAULT_DELIMITER_START DEFAULT_DELIMITER_END;
+          partialRendered = renderWithDynamicDelimiters partialTemplateFinal stack DEFAULT_DELIMITER_START DEFAULT_DELIMITER_END;
         in
           (if elem.isStandalone then
             partialRendered
@@ -162,21 +158,24 @@ let
                    acc + openTrailing + resolvedValue + endLeading)
                  openLeading effectiveValue) + endTrailing
           ) + (handleElements afterSectionList stack)
-      else if mod == "" || mod == UNESCAPED || mod == UNESCAPED2 then
+      else if mod == ESCAPED || mod == UNESCAPED || mod == UNESCAPED2 then
         let
           resolvedValue = resolveValue val null;
-          escapedValue = if mod == "" then cfg.escape resolvedValue else resolvedValue;
+          escapedValue = if mod == ESCAPED then cfg.escape resolvedValue else resolvedValue;
         in
           openLeading + escapedValue + openTrailing + remainder
       else
         throw "Unknown modifier: ${mod}";
 
-  canBeStandalone = mod: mod == SECTION || mod == INVERT || mod == COMMENT || mod == CLOSE || mod == PARTIAL;
+  
   
   prepareChunks = rawList:
     let
-      list = builtins.filter (e: e != "") rawList;
-      tagsToAttrs = idx: element:
+      cleanedList = builtins.filter (e: e != "") rawList;
+      canBeStandalone = mod:
+        mod == SECTION || mod == INVERT || mod == COMMENT || mod == CLOSE || mod == PARTIAL;
+      
+      tagsToAttrs = list: idx: element:
         if builtins.isList element then
           let
             at = builtins.elemAt element;
@@ -202,8 +201,8 @@ let
         else
           element;
     in
-      lists.imap0 tagsToAttrs list;
-  
+      lists.imap0 (tagsToAttrs cleanedList) cleanedList;
+
   renderWithConstantDelimiters = template: stack: delimiterStart: delimiterEnd:
     let
       delimiterStartEscaped = strings.escapeRegex delimiterStart;
@@ -214,8 +213,9 @@ let
       matches = prepareChunks splited;
     in
       handleElements matches stack;
-  
-  renderWithDelimiters = template: stack: delimiterStart: delimiterEnd:
+
+  # Split template in chunks with different delimiters 
+  renderWithDynamicDelimiters = template: stack: delimiterStart: delimiterEnd:
     let
       delimiterStartEscaped = strings.escapeRegex delimiterStart;
       delimiterEndEscaped = strings.escapeRegex delimiterEnd;
@@ -224,7 +224,7 @@ let
                 delimiterEndEscaped + "([[:blank:]]*)($|\n|\r\n)?)";
       splited = builtins.split splitRe template;
       
-      parts = builtins.length splited;
+      count = builtins.length splited;
       at = builtins.elemAt (builtins.elemAt splited 1);
       leadingLf = at 1;
       leadingSp = at 2;
@@ -238,19 +238,19 @@ let
       spacing = (utils.nullToEmpty leadingLf) + (if isStandalone then "" else leadingSp + trailingSp + (utils.nullToEmpty trailingLf));
       
       renderedWithOriginalDelimiters = renderWithConstantDelimiters (builtins.head splited) stack delimiterStart delimiterEnd;
-      renderedWithNewDelimiters = spacing + (renderWithDelimiters partWithNewDelimiters stack newDelimiterStart newDelimiterEnd);
+      renderedWithNewDelimiters = spacing + (renderWithDynamicDelimiters partWithNewDelimiters stack newDelimiterStart newDelimiterEnd);
     in
       renderedWithOriginalDelimiters + 
-      (if parts == 1 then "" 
-       else if parts > 2 then renderedWithNewDelimiters
-       else throw "Unexpected number of parts: ${toString parts}")
+      (if count == 1 then "" 
+       else if count > 2 then renderedWithNewDelimiters
+       else throw "Unexpected number of parts: ${toString count}")
   ;
   
   renderTemplate = template: view:
     let
       templateContent = if builtins.isPath template then builtins.readFile template else template;
     in
-      renderWithDelimiters templateContent [{ value = view;}] DEFAULT_DELIMITER_START DEFAULT_DELIMITER_END;
+      renderWithDynamicDelimiters templateContent [{ value = view;}] DEFAULT_DELIMITER_START DEFAULT_DELIMITER_END;
   
 in renderTemplate template view
         
