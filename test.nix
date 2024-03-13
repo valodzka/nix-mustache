@@ -29,9 +29,15 @@ let
     { t = "| A {{#bool}}B {{#bool}}C{{/bool}} D{{/bool}} E |"; v = { bool = true; }; e = "| A B C D E |"; }
     { t = "a\n{{! comment }}\nb"; v = {}; e = "a\nb"; }
     { t = "a\n{{ comment }}\nb"; v = { comment = "c"; }; e = "a\nc\nb"; }
+    { t = "a\n{{#f}}\n {{#f}}\n  {{#f}}\n   {{#f}}\n1\n   {{/f}}\n  {{/f}}\n {{/f}}\n{{/f}}"; v = { f = true; }; e = "a\n1\n"; }
+    { t = "a{{>text}}"; v = { x = 1; }; e = "a1"; p = n: "{{x}}"; }
   ];
   runTest = case: let
-    result = (mustache { template = case.t; view = case.v; config = { lib = pkgs.lib; escapeFunction = pkgs.lib.strings.escapeXML; }; });
+    result = (mustache { template = case.t; view = case.v; config = {
+      lib = pkgs.lib;
+      escape = pkgs.lib.strings.escapeXML;
+      partial = if case ? p then case.p else null;
+    }; });
     expected = case.e;
   in
     if result != expected then throw "EXPECTED: '${expected}', GOT: '${result}'" else result;

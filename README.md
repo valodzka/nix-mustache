@@ -6,14 +6,15 @@ Pure nix implementation of [mustache](https://mustache.github.io/) template engi
 
 ``` nix
 # basic usage
+
 (import ./mustache){ template = "Hello, {{name}}!"; view = { name = "nix"; }; }
 
 # with escape
 let
-  mustache = import ./mustache;
-  escapeFunction = string: builtins.replaceStrings ["nix"] ["NIX"] string;
+  mustache = import (builtins.fetchurl { url = "https://raw.githubusercontent.com/valodzka/nix-mustache/master/mustache/default.nix"; });
+  escape = string: builtins.replaceStrings ["nix"] ["NIX"] string;
 in
-  mustache { template = "Hello, {{name}}!"; view = { name = "nix"; }; config = { inherit escapeFunction; }; }
+  mustache { template = "Hello, {{name}}!"; view = { name = "nix"; }; config = { inherit escape; }; }
 ```
 
 ### Configs templating
@@ -73,21 +74,21 @@ Run `nix-env --install --file coredns-config.nix` and it will generate:
 ```
 
 ## Features
-- [x] variables`{{escaped}}`, `{{&unescaped}}` (default escape function does nothing)
+- [x] variables`{{escaped}}`, `{{&unescaped}}`, `{{{unescaped}}}` (default escape function does nothing)
 - [x] sections `{{#section}}`
 - [x] inverted sections `{{^inverted}}`
 - [x] lambdas `{{#lambda}}`
 - [x] comments `{{!comment}}`
 - [x] variables dot notation `{{obj.prop}}`
-- [x] tests
+- [x] partials `{{>partial}}`
+- [x] tests, spec
 
 ## Not implemented
-- [ ] partials `{{>partial}}`
 - [ ] set delimiter `{{=<% %>=}}`
-- [ ] `{{{unescaped}}}`
 
 ## Tests
-### Run [mustache spec](https://github.com/mustache/spec) (partialy implemented)
+### Run [mustache spec](https://github.com/mustache/spec)
+Pass all main parts except `delimiters`
 
     nix-instantiate --eval spec.nix
     
