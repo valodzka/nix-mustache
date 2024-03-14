@@ -1,5 +1,8 @@
-{ template, view, config ? {} }:
+{ lib }:
+{ template, view, config ? {}}:
 let
+  inherit (lib) lists strings;
+  
   DEFAULT_DELIMITER_START = "{{";
   DEFAULT_DELIMITER_END = "}}";
   COMMENT = "!";
@@ -10,9 +13,6 @@ let
   CLOSE = "/";
   PARTIAL = ">";
   ESCAPED = "";
-
-  lib = config.lib or (import <nixpkgs> { config = {}; overlays = []; }).lib;
-  inherit (lib) lists strings;
 
   cfg = {
     partial = config.partial or (v: null);
@@ -239,6 +239,6 @@ let
       templateContent = if builtins.isPath template then builtins.readFile template else template;
     in
       renderWithDynamicDelimiters templateContent [view] DEFAULT_DELIMITER_START DEFAULT_DELIMITER_END;
-  
 in renderTemplate template view
+
         

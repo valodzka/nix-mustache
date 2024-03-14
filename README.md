@@ -5,13 +5,21 @@ Pure nix implementation of [mustache](https://mustache.github.io/) template engi
 ## Examples
 
 ``` nix
-# basic usage
+# basic usage, library should be local
+let 
+  pkgs = import <nixpkgs> { config = {}; overlays = []; };
+  mustache = import ./mustache { inherit (pkgs) lib; };
+in
+  mustache { template = "Hello, {{name}}!"; view = { name = "nix"; }; }
 
-(import ./mustache){ template = "Hello, {{name}}!"; view = { name = "nix"; }; }
-
-# with loading from github & custom escape
+# (unreproducible) library loading from github & custom escape
 let
-  mustache = import (builtins.fetchurl { url = "https://raw.githubusercontent.com/valodzka/nix-mustache/master/mustache/default.nix"; });
+  pkgs = import <nixpkgs> { config = {}; overlays = []; };
+  repo = builtins.fetchGit {
+    url = "https://github.com/valodzka/nix-mustache.git";
+    ref = "master";
+  };
+  mustache = import (repo + "/mustache") { lib = pkgs.lib; };
   escape = string: builtins.replaceStrings ["nix"] ["NIX"] string;
 in
   mustache { template = "Hello, {{name}}!"; view = { name = "nix"; }; config = { inherit escape; }; }
@@ -36,7 +44,7 @@ Given template `Corefile.mustache` & nix file `coredns-config.nix`:
 ```
 
 ``` nix
-{ pkgs ? import <nixpkgs>  { config = {}; overlays = []; }, mustache ? import ./mustache }:
+{ pkgs ? import <nixpkgs>  { config = {}; overlays = []; }, mustache ? import ./mustache { lib = pkgs.lib; } }:
 
 let
   config = mustache {

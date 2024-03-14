@@ -2,7 +2,7 @@
 let
   pkgs = import <nixpkgs> { config = {}; overlays = []; };
   lib = pkgs.lib;
-  mustache = import ./mustache;
+  mustache = import ./mustache { inherit lib; };
   # TODO: test failures? better {{{}}} handing?
   tests = [
     { t = "hello, {{name}} {{name}}"; v = { name = "World"; }; e = "hello, World World"; }
@@ -37,7 +37,6 @@ let
   
   createTest = idx: case: let
     result = mustache { template = case.t; view = case.v; config = {
-      lib = pkgs.lib;
       escape = lib.strings.escapeXML;
       partial = case.p or null;
     }; };
