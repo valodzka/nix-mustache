@@ -179,12 +179,13 @@ let
               prevEl = builtins.elemAt list (idx - 1);
             in
               idx == 0 || (elemEndsWithLf prevEl);
-          in rec {
-            inherit tag modifier leadingSpace;
+
+            isStandalone = (canBeStandalone modifier) && trailingLf != null && hasLeadingLf;
             trailingSpace = baseTrailingSpace + (utils.nullToEmpty trailingLf);
+          in {
+            inherit tag modifier leadingSpace trailingSpace isStandalone;
             effectiveLeadingSpace = if isStandalone then "" else leadingSpace;
             effectiveTrailingSpace = if isStandalone then "" else trailingSpace;
-            isStandalone = (canBeStandalone modifier) && trailingLf != null && hasLeadingLf;
           }
         else
           element;
