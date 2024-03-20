@@ -93,9 +93,9 @@ Run `nix-env --install --file coredns-config.nix` and it will generate:
 
 ## Tests
 ### Run [mustache spec](https://github.com/mustache/spec)
-Implements all non optional modules.
+Implements all core modules + lambdas from optional modules.
 
-    nix-instantiate --eval spec.nix
+    nix --extra-experimental-features nix-command eval --file spec.nix
     
 ### Run tests
 

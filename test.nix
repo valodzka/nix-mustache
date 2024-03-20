@@ -3,7 +3,7 @@ let
   pkgs = import <nixpkgs> { config = {}; overlays = []; };
   lib = pkgs.lib;
   mustache = import ./mustache { inherit lib; };
-  # TODO: test failures? better {{{}}} handing?
+  # TODO: better {{{}}} handing?
   tests = [
     { t = "hello, {{name}} {{name}}"; v = { name = "World"; }; e = "hello, World World"; }
     { t = "hello, {{ name }} {{  name   }}"; v = { name = "World"; }; e = "hello, World World"; }
@@ -33,13 +33,19 @@ let
     { t = "a\n{{#f}}\n {{#f}}\n  {{#f}}\n   {{#f}}\n1\n   {{/f}}\n  {{/f}}\n {{/f}}\n{{/f}}"; v = { f = true; }; e = "a\n1\n"; }
     { t = "a{{>text}}"; v = { x = 1; }; e = "a1"; p = n: "{{x}}"; }
     { t = "{{=<% %>=}}(<%text%>)"; v = { text = "Hey!"; }; e = "(Hey!)"; }
+    { t = "{{a}} + {{b}} = {{c}}"; v = rec { a = 1; b = 2; c = a + b; }; e = "1 + 2 = 3"; }
+    
+    { t = "{{#a}}{{x}}{{/a}}"; v = { a = [{ x = { y = 1; }; }]; }; e = false; }
+    { t = "{{#a}}{{.}}{{/b}}"; v = { a = 1; }; e = false; }
   ];
   
   createTest = idx: case: let
-    result = mustache { template = case.t; view = case.v; config = {
+    renderResult = mustache { template = case.t; view = case.v; config = {
       escape = lib.strings.escapeXML;
       partial = case.p or null;
     }; };
+    result = if case.e == false then (builtins.tryEval renderResult).success
+             else renderResult;
   in {
     name = "test#${builtins.toString idx}";
     value = {
