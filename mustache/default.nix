@@ -38,6 +38,14 @@ let
   };
   
   isTag = utils.hasAttr "tag";
+
+  formatTagPath = list:
+    lib.trivial.pipe list [
+      (builtins.filter (v: v != ""))
+      lists.reverseList
+      (builtins.map (v: "\"${v}\""))
+      (builtins.concatStringsSep " > ")
+    ];
   
   findVariableValue = key: stack:
     let
@@ -58,8 +66,8 @@ let
 
   resolveValue = stack: context: renderer: value: arg:
     let
-      stackPath' = builtins.map (v: v.tag) (builtins.tail (lists.reverseList stack));
-      stackPath = builtins.concatStringsSep " > " (stackPath' ++ [context]);
+      stackPath' = builtins.map (v: v.tag) stack;
+      stackPath = formatTagPath ([context] ++ stackPath');
       funcResult = if builtins.isFunction value then renderer (value arg) stack else value;
       finalResult = if builtins.isFloat funcResult then utils.formatFloat funcResult
                     else if builtins.isAttrs funcResult then throw "Cannot coerce a object to a string for key path ${stackPath}: ${builtins.toJSON funcResult}"
@@ -76,6 +84,8 @@ let
     in
       if stack == [] then
         index - 1
+      else if index >= builtins.length list then
+        throw "Close tag not found (expected close of ${formatTagPath stack})"
       else
         if isTag elem && (mod == SECTION || mod == INVERT || mod == CLOSE) then
           if mod == CLOSE then

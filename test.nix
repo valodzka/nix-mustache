@@ -37,6 +37,7 @@ let
     
     { t = "{{#a}}{{x}}{{/a}}"; v = { a = [{ x = { y = 1; }; }]; }; e = false; }
     { t = "{{#a}}{{.}}{{/b}}"; v = { a = 1; }; e = false; }
+    { t = "{{#a}}{{#b}}{{.}}"; v = { a = 1; }; e = false; }
   ];
   
   createTest = idx: case: let
