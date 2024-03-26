@@ -32,9 +32,9 @@ let
     removeIfLast = list: targetElem:
       let
         len = builtins.length list;
-        lastElem = builtins.elemAt list (len - 1);
+        lastElem = lists.last list;
       in
-        if len == 0 || lastElem != targetElem then list else lists.sublist 0 (len - 1) list;
+        if len == 0 || lastElem != targetElem then list else lists.init list;
   };
   
   isTag = utils.hasAttr "tag";
