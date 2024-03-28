@@ -43,8 +43,8 @@ let
     lib.trivial.pipe list [
       (builtins.filter (v: v != ""))
       lists.reverseList
-      (builtins.map (v: "\"${v}\""))
-      (builtins.concatStringsSep " > ")
+      (builtins.concatStringsSep "/")
+      (v: "\"/${v}\"")
     ];
   
   findVariableValue = key: stack:
@@ -64,14 +64,17 @@ let
     in
       if key == "." then (builtins.head stack).value else findValueByPath key stack;
 
+  coerceValue = stackPath: value:
+    if builtins.isFloat value then utils.formatFloat value
+    else if strings.isConvertibleWithToString  value then builtins.toString value
+    else throw "Connot coerce object to string for key path ${stackPath}: ${builtins.typeOf value}";
+  
   resolveValue = stack: context: renderer: value: arg:
     let
       stackPath' = builtins.map (v: v.tag) stack;
       stackPath = formatTagPath ([context] ++ stackPath');
-      funcResult = if builtins.isFunction value then renderer (value arg) stack else value;
-      finalResult = if builtins.isFloat funcResult then utils.formatFloat funcResult
-                    else if builtins.isAttrs funcResult then throw "Cannot coerce a object to a string for key path ${stackPath}: ${builtins.toJSON funcResult}"
-                    else builtins.toString funcResult;
+      funcResult = coerceValue stackPath (value arg);
+      finalResult = if builtins.isFunction value then renderer funcResult stack else coerceValue stackPath value;
     in
       finalResult;
 
